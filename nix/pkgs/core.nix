@@ -53,6 +53,23 @@ rec {
     )
   '';
 
+  hcReleaseAutmoationRelease = writeShellScriptBin "hc-release-automation-release" ''
+    set -euxo pipefail
+
+    # todo: need a way to not make the hdk fail despite it being unreleasable
+    cargo run --manifest-path=crates/release-automation/Cargo.toml -- \
+        --workspace-path=$PWD \
+        --log-level=trace \
+      release \
+        ''${@} \
+        --selection-filter="^(holochain|holochain_cli|kitsune_p2p_proxy)$" \
+        --disallowed-version-reqs=">=0.1" \
+        --allowed-selection-blockers=UnreleasableViaChangelogFrontmatter \
+        --allowed-dependency-blockers=UnreleasableViaChangelogFrontmatter \
+        --exclude-optional-deps \
+        --exclude-dep-kinds=development \
+  '';
+
   hcStaticChecks = let
       pathPrefix = lib.makeBinPath
         (builtins.attrValues { inherit (holonix.pkgs)

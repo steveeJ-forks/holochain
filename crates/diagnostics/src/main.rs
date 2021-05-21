@@ -20,6 +20,9 @@ mod conductor;
 mod display;
 mod wasm;
 
+#[macro_use]
+extern crate educe;
+
 #[derive(Debug, StructOpt)]
 struct Opt {
     lmdb_path: PathBuf,

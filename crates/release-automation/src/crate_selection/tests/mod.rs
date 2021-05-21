@@ -30,8 +30,8 @@ fn detect_changed_files() {
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
 
     assert_eq!(
-        vec![PathBuf::from(&workspace.root().unwrap()).join("README")],
-        changed_files(&workspace.root().unwrap(), &before, &after).unwrap()
+        vec![PathBuf::from(workspace.root()).join("README")],
+        changed_files(workspace.root(), &before, &after).unwrap()
     );
 }
 
@@ -71,8 +71,8 @@ fn detect_changed_crates() {
     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
 
     assert_eq!(
-        vec![PathBuf::from(&workspace.root().unwrap()).join("README")],
-        changed_files(&workspace.root().unwrap(), &before, &after).unwrap()
+        vec![PathBuf::from(workspace.root()).join("README")],
+        changed_files(workspace.root(), &before, &after).unwrap()
     );
 }
 
@@ -278,9 +278,10 @@ fn crate_state_allowed_dependency_blockers() {
     let state = CrateState::new(flags, allowed_blockers, Default::default());
 
     assert!(
-        !state.blocked() && state.blocked_by().is_empty(),
-        "{:#?}",
-        state.blocked_by()
+        state.blocked() && !state.blocked_by().is_empty() && state.disallowed_blockers().is_empty(),
+        "blocked by: {:#?}, disallowed blockers: {:#?}",
+        state.blocked_by(),
+        state.disallowed_blockers(),
     );
 }
 
@@ -308,8 +309,17 @@ fn crate_state_allowed_selection_blockers() {
     let state = CrateState::new(flags, Default::default(), allowed_blockers);
 
     assert!(
-        !state.blocked() && state.blocked_by().is_empty(),
-        "{:#?}",
-        state.blocked_by()
+        state.blocked() && !state.blocked_by().is_empty() && state.disallowed_blockers().is_empty(),
+        "blocked by: {:#?}, disallowed blockers: {:#?}",
+        state.blocked_by(),
+        state.disallowed_blockers(),
     );
 }
+
+// todo: add git tests here
+// #[test]
+// fn git_branch_management() -> {
+//     let workspace_mocker = example_workspace_1().unwrap();
+//     let workspace = ReleaseWorkspace::try_new(workspace_mocker.root()).unwrap();
+
+// }
