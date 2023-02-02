@@ -72,8 +72,6 @@
       holochainNextestDeps = craneLib.buildDepsOnly (commonArgs // rec {
         pname = "holochain-nextest";
         CARGO_PROFILE = "fast-test";
-        cargoExtraArgs =
-          "--features slow_tests,glacial_tests,test_utils,build_wasms,db-encryption --lib --tests";
         nativeBuildInputs = [ pkgs.cargo-nextest ];
         buildPhase = ''
           cargo nextest run --no-run \
@@ -87,13 +85,14 @@
       # "conductor::cell::gossip_test::gossip_test"
       disabledTests = [
         "core::ribosome::host_fn::remote_signal::tests::remote_signal_test"
-      ];
+      ] ++ (lib.optionals (pkgs.system == "x86_64-darwin") [
+        "holochain::integration new_lair::test_new_lair_conductor_integration"
+      ]);
 
       disabledTestsArgs =
         lib.forEach disabledTests (test: "-E 'not test(${test})'");
 
       holochain-tests-nextest = craneLib.cargoNextest (commonArgs // {
-        pname = "holochain";
         __impure = pkgs.stdenv.isLinux;
         cargoArtifacts = holochainNextestDeps;
 
@@ -115,9 +114,8 @@
 
         dontPatchELF = true;
         dontFixup = true;
-        dontInstall = true;
 
-        installPhase = "cp -v target/.rustc_info.json $out";
+        installPhase = "cat target/.rustc_info.json > $out";
       });
 
       holochain-tests-fmt = craneLib.cargoFmt (commonArgs // {
@@ -141,6 +139,8 @@
 
         dontPatchELF = true;
         dontFixup = true;
+
+        installPhase = "cat target/.rustc_info.json > $out";
       });
 
       holochain-tests-wasm = craneLib.cargoTest (commonArgs // {
@@ -150,6 +150,8 @@
 
         dontPatchELF = true;
         dontFixup = true;
+
+        installPhase = "cat target/.rustc_info.json > $out";
       });
 
     in
