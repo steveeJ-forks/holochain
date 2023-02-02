@@ -1,22 +1,36 @@
-name: build holochain
+name: holochain build and test
 on:
   workflow_dispatch:
+  pull_request:
+
+concurrency:
+  group: build-${{ github.ref_name }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-holochain:
     strategy:
       fail-fast: false
       matrix:
-        nixCommand:
-          - "nix build .#holochain --no-link"
-          # - "nix build .#holochain-tests-nextest --no-link"
+        cmd:
+          - "nix build .#packages.${system}.holochain-tests-wasm .#packages.${system}.holochain-tests-nextest"
         platform:
           - system: x86_64-darwin
             runs-on: multi-arch
           - system: aarch64-darwin
             runs-on: multi-arch
-          - system: x86_64-linux
-            runs-on: ubuntu-latest
+          # - system: x86_64-linux
+          #   runs-on: multi-arch
+
+        include:
+          - cmd: "nix run .#release-automation-tests .#release-automation-tests-repo"
+            platform:
+              system: x86_64-linux
+              runs-on: ubuntu-latest
+          - cmd: "nix build .#packages.${system}.holochain-tests-clippy .#packages.${system}.holochain-tests-fmt"
+            platform:
+              system: x86_64-linux
+              runs-on: ubuntu-latest
 
     runs-on: ${{ matrix.platform.runs-on }}
     steps:
@@ -29,16 +43,22 @@ jobs:
         uses: cachix/install-nix-action@v18
         if: ${{ matrix.platform.runs-on != 'multi-arch' }}
         with:
-          install_url: https://releases.nixos.org/nix/nix-2.12.0/install
           extra_nix_config: |
             experimental-features = flakes nix-command
-
       - name: Setup cachix
         uses: cachix/cachix-action@v12
+        if: ${{ matrix.platform.runs-on != 'multi-arch' }}
         continue-on-error: ${{ matrix.platform.runs-on == 'multi-arch' }}
         with:
           name: holochain-ci
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      - name: Restart nix-daemon
+        if: ${{ matrix.platform.runs-on == 'ubuntu-latest' }}
+        run: |
+          sudo bash -c 'echo extra-experimental-features = ca-derivations impure-derivations >> /etc/nix/nix.conf'
+          sudo systemctl stop nix-daemon
 
       - name: "Test comand ${{ matrix.nixCommand }}"
-        run: ${{ matrix.nixCommand }} -L --show-trace --system ${{ matrix.platform.system }} --extra-experimental-features "ca-derivations impure-derivations"
+        env:
+          system: ${{ matrix.platform.system }}
+        run: ${{ matrix.cmd }} -L --show-trace
